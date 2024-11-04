@@ -3,7 +3,6 @@ from OneRecursion import *
 from utils import *
 import pandas as pd
 import torch
-from tqdm import tqdm
 import numpy as np
 import torch.optim as optim
 import time
@@ -42,14 +41,14 @@ class BP_all_dim(Method):
         index_arr = range( self.n_dim)
         dim_index_pds = self.backend.parallelize(index_arr)
 
-        avg_pdf_cdf_theta_dimidx_testgrid_traincdf = self.backend.map(self._BP_single_dim, dim_index_pds)
-        avg_pdf_cdf_theta_dimidx_testgrid_traincdf_collected = self.backend.collect(avg_pdf_cdf_theta_dimidx_testgrid_traincdf)
-        avg_pdf, avg_cdf, theta_hist, dimidx, grids = [list(t) for t in zip(*avg_pdf_cdf_theta_dimidx_testgrid_traincdf_collected)]
+        avg_pdf_cdf_theta_dimidx_pds = self.backend.map(self._BP_single_dim, dim_index_pds)
+        avg_pdf_cdf_theta_dimidx = self.backend.collect(avg_pdf_cdf_theta_dimidx_pds)
+        out_calc = [list(t) for t in zip(*avg_pdf_cdf_theta_dimidx)]
 
         #avg_pdf_cdf_theta = self.backend.collect(parameters_simulations_pds)
         #parameters, simulations = [list(t) for t in zip(*parameters_simulations)]
 
-        return avg_pdf, avg_cdf, theta_hist, dimidx, grids
+        return out_calc
 
     # def _sub_calc(self, a):
     #     return pow(a, self.exponent) + 10
@@ -101,8 +100,8 @@ class BP_all_dim(Method):
                 grid, grid_cdf = MarRecur().get_CDF_on_grid_single_perm(grid_size=1000,
                                                                         cdf_traindata_oneperm=conditional_cdf_train,
                                                                         current_rho=torch.sigmoid(rho),
-                                                                        observed_data=train_data[perm,:]) # gets cdf values on grid, to use in escore
-                
+                                                                        observed_data=train_data[perm,:])  # gets cdf values on grid
+
                 grid_cdf.requires_grad_(True)
                 cdf_perms.append(grid_cdf)
 
@@ -111,7 +110,7 @@ class BP_all_dim(Method):
                                                   observed_data=train_data[perm, :],
                                                   grid=grid,
                                                   cdf_grid_listperms=cdf_perms,
-                                                  crps='not integral')
+                                                  crps='integral')
 
             out[0].backward()
             optimizer.step()
@@ -123,31 +122,33 @@ class BP_all_dim(Method):
                     if torch.sigmoid(rho).item() - theta_hist[-2] < 1e-2:
                         stop_counter += 1
 
-                if torch.sigmoid(rho).item() > 0.999 or stop_counter > 2:  # Optimisation finished
-                    print('Dim=',dim_index,' converged|' ' evals:', 1 + i, '| selected rho:', theta_hist[-2], '| time taken:',
-                          time.time() - start)
-                    print('Reason:', '| rho too close to 1', torch.sigmoid(rho).item() > 0.999,
-                          '| stop_counter>2 (diff between itterations<0.01) for 3 times:', stop_counter > 2)
+                    if torch.sigmoid(rho).item() > 0.999 or stop_counter > 2:  # Optimisation finished
+                        print('Dim=',dim_index,' converged|' ' evals:', 1 + i, '| selected rho:', theta_hist[-2], '| time taken:',
+                            time.time() - start)
+                        print('Reason:', '| rho too close to 1', torch.sigmoid(rho).item() > 0.999,
+                            '| stop_counter>2 (diff between itterations<0.01) for 3 times:', stop_counter > 2)
 
-                    # Compute the pdf and cdf on test data
-                    pdfs = []
-                    cdfs = []
-                    test_grid = torch.cat([test_data, torch.linspace(train_data.min() - 1, train_data.max() + 1,
-                                                                    10000)])  
-                    for perm in (range(train_data.shape[0])):
-                        conditional_cdf_train = conditional_cdf_train_list[perm]  # reuse the conditional cdf of theta[-2]
-                        pdf, cdf = MarRecur().eval_PDFandCDF_on_test_single_perm(test_data=test_grid,
-                                                                                 cdf_traindata_oneperm=conditional_cdf_train,
-                                                                                 current_rho=torch.tensor(theta_hist[-2]))
-                        pdfs.append(pdf)
-                        cdfs.append(cdf)
-                    # average the pdfs and cdfs over permutations
-                    avg_pdfs = torch.stack(pdfs).mean(dim=0)
-                    avg_cdfs = torch.stack(cdfs).mean(dim=0)
+                        # Compute the pdf and cdf on test data
+                        pdfs = []
+                        cdfs = []
+                        cdfs_train = []
+                        test_grid = torch.cat([test_data, torch.cat([torch.tensor(train_data)[i] for i in range(len(train_data))])])
+                        for perm in (range(train_data.shape[0])):
+                            conditional_cdf_train = conditional_cdf_train_list[perm]  # reuse the conditional cdf of theta[-2]
+                            pdf, cdf = MarRecur().eval_PDFandCDF_on_test_single_perm(test_data=test_grid,
+                                                                                    cdf_traindata_oneperm=conditional_cdf_train,
+                                                                                    current_rho=torch.tensor(theta_hist[-2]))
+                            pdfs.append(pdf[:test_data.shape[0]]) #only the test data
+                            cdfs.append(cdf[:test_data.shape[0]]) #only the test data
+                            cdfs_train.append(cdf[test_data.shape[0]:]) #only the train data
+                        # average the pdfs and cdfs over permutations
+                        avg_pdfs = torch.stack(pdfs).mean(dim=0)
+                        avg_cdfs = torch.stack(cdfs).mean(dim=0)
+                        avg_cdfs_train = torch.stack(cdfs_train).mean(dim=0)
 
-                    out = [avg_pdfs.detach().numpy(), avg_cdfs.detach().numpy(), theta_hist[-2],dim_index, test_grid.detach().numpy()]
-                    print('Dim=',dim_index,' finished|','| selected rho:', theta_hist[-2], '| time taken:',
-                          time.time() - start)
-                    break
+                        out = [avg_pdfs.detach().numpy(), avg_cdfs.detach().numpy(), theta_hist[-2],dim_index, avg_cdfs_train.detach().numpy()]
+                        print('Dim=',dim_index,' finished|','| selected rho:', theta_hist[-2], ' |nll:',np.mean(-np.log(avg_pdfs.detach().numpy())),'| time taken:',
+                            time.time() - start)
+                        break
 
         return out

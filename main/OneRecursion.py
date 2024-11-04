@@ -2,7 +2,6 @@ from utils import *
 from GaussianCop import *
 import torch
 from sklearn.model_selection import train_test_split
-import xitorch.interpolate as xi
 
 
 class MarRecur:
@@ -207,7 +206,7 @@ class MarRecur:
         # Initialize the PDF and CDF values
         if init_dist == 'Normal':
             cdf = torch.distributions.normal.Normal(loc=0, scale=1).cdf(test_data).reshape(num_data_test)
-            pdf = DistributionFunctions.pdf_std_normal(test_data).reshape(num_data_test)
+            pdf = DistributionFunctions.pdf_std_normal(test_data).reshape(num_data)
         if init_dist == 'Cauchy':
             cdf = torch.distributions.cauchy.Cauchy(loc=0.0, scale=1.0).cdf(test_data).reshape(num_data_test)
             pdf = torch.distributions.cauchy.Cauchy(loc=0.0, scale=1.0).log_prob(test_data).exp().reshape(num_data_test)
