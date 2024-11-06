@@ -1,9 +1,9 @@
-from backends.base import *
+from main.backends.base import *
 
 
 def BackendMPI(*args, **kwargs):
     # import and setup module mpimanager
-    import backends.mpimanager
+    import main.backends.mpimanager as mpimanager
     master_node_ranks = [0]
     process_per_model = 1
     if 'master_node_ranks' in kwargs:

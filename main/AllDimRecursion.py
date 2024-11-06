@@ -1,6 +1,6 @@
-from GaussianCop import *
-from OneRecursion import *
-from utils import *
+from .GaussianCop import *
+from .OneRecursion import *
+from .utils import *
 import pandas as pd
 import torch
 import numpy as np
