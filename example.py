@@ -28,7 +28,7 @@ def evaluate_model(results):
     print(f"Average PDF: {avg_pdfs}")
 
 if __name__ == "__main__":
-    data = load_data()[:, 0:3]
+    data = load_data()[:20, 0:3]
     train_data = torch.tensor(data)
     test_data = torch.tensor(data)
     results = train_model(train_data, test_data)

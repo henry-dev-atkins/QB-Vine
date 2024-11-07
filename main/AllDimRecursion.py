@@ -59,8 +59,8 @@ class BP_all_dim(Method):
         self.logger.debug(f"Starting _BP_single_dim for dimension {dim_index}")
         max_iter = 50
         learning_rate = 3
-        train_data = self.train_data_all_dim_bds.value()[:,:]# int(dim_index)]
-        test_data = self.test_data_all_dim_bds.value()[:,:]#  int(dim_index)]
+        train_data = self.train_data_all_dim_bds.value()[:, int(dim_index)]
+        test_data = self.test_data_all_dim_bds.value()[:,  int(dim_index)]
         # Ensure train_data and test_data have compatible shapes
         print(train_data.shape)
         if train_data.shape[0] != test_data.shape[0]:
@@ -84,14 +84,15 @@ class BP_all_dim(Method):
             cdf_perms = []
             for perm in range(train_data.shape[0]):
                 self.logger.debug(f"Dim={dim_index} | Iter={i} | Perm={perm}")
-                conditional_cdf_train = MarRecur().get_CDFn_on_trainset(train_data[perm, :], torch.sigmoid(rho))  # gets u^n values
+                conditional_cdf_train = MarRecur().get_CDFn_on_trainset(train_data[perm], torch.sigmoid(rho))  # gets u^n values
                 conditional_cdf_train_list.append(conditional_cdf_train)
-                grid, grid_cdf = MarRecur().get_CDF_on_grid_single_perm(grid_size=1000, cdf_traindata_oneperm=conditional_cdf_train, current_rho=torch.sigmoid(rho), observed_data=train_data[perm,:])  # gets cdf values on grid
+                self.logger.debug(f"Dim={dim_index} | Iter={i} | Perm={perm} | Finished computing conditional_cdf_train")
+                grid, grid_cdf = MarRecur().get_CDF_on_grid_single_perm(grid_size=1000, cdf_traindata_oneperm=conditional_cdf_train, current_rho=torch.sigmoid(rho), observed_data=train_data[perm])  # gets cdf values on grid
                 grid_cdf.requires_grad_(True)
                 cdf_perms.append(grid_cdf)
             self.logger.debug(f"Dim={dim_index} | Iter={i} | Finished computing cdf_perms")
             # escore averaged over all perms
-            out = MarRecur().escore_over_avgperms(num_samples=100, observed_data=train_data[perm, :], grid=grid, cdf_grid_listperms=cdf_perms, crps='integral')
+            out = MarRecur().escore_over_avgperms(num_samples=100, observed_data=train_data[perm], grid=grid, cdf_grid_listperms=cdf_perms, crps='integral')
             out[0].backward()
             optimizer.step()
             scores_hist.append(out[0].item())
