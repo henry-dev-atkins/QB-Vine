@@ -7,8 +7,9 @@ import cloudpickle
 import numpy as np
 from mpi4py import MPI
 
-import backends.mpimanager
-from backends import BDS, PDS, Backend, NestedParallelizationController
+from main.backends.mpimanager import *
+from main.backends import BDS, PDS, Backend, NestedParallelizationController
+
 
 
 class NestedParallelizationControllerMPI(NestedParallelizationController):
@@ -447,6 +448,9 @@ class BackendMPIWorker(Backend):
         """
         while True:
             data = self.mpimanager.get_model_communicator().bcast(None, root=0)
+            if data is None:
+                self.logger.error("Received None data in __worker_run")
+                return
             op = data[0]
             if op == self.OP_MAP:
                 # Receive data from scheduler of the model
@@ -648,7 +652,7 @@ class BackendMPILeader(BackendMPIWorker):
         _ = self.mpimanager.get_scheduler_communicator().gather(pds.python_list, root=0)
 
 
-class BackendMPITeam(BackendMPILeader if backends.mpimanager.get_mpi_manager().is_leader() else BackendMPIWorker):
+class BackendMPITeam(BackendMPILeader if get_mpi_manager().is_leader() else BackendMPIWorker):
     """
     A team is compounded by workers and a leader. One process per team is a leader, others are workers
     """
@@ -669,8 +673,8 @@ class BackendMPITeam(BackendMPILeader if backends.mpimanager.get_mpi_manager().i
         super().__init__()
 
 
-class BackendMPI(BackendMPIScheduler if backends.mpimanager.get_mpi_manager().is_scheduler() else BackendMPITeam):
-    """A backend parallelized by using MPI
+class BackendMPITeam(BackendMPILeader if get_mpi_manager().is_leader() else BackendMPIWorker):
+    """"A backend parallelized by using MPI
 
     The backend conditionally inherits either the BackendMPIScheduler class
     or the BackendMPIteam class depending on it's rank. This lets
@@ -691,7 +695,7 @@ class BackendMPI(BackendMPIScheduler if backends.mpimanager.get_mpi_manager().is
         """
         # get mpimanager instance from the mpimanager module (which has to be setup before calling the constructor)
         self.logger = logging.getLogger(__name__)
-        self.mpimanager = backends.mpimanager.get_mpi_manager()
+        self.mpimanager = get_mpi_manager()
 
         if self.mpimanager.get_world_size() < 2:
             raise ValueError('A minimum of 2 ranks are required for the MPI backend')

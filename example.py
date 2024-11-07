@@ -1,13 +1,7 @@
 import torch
 from main.AllDimRecursion import BP_all_dim
-from main.backends import BackendMPI
+from main.backends import *
 
-
-if True:
-    raise NotImplementedError("Imports work correctly, please remove this clause to test teh codebase!.")
-
-
-"""
 # I have Implemented what I *think* is the correct way to use the codebase, 
 # although it is untested due to import/install issues.
 
@@ -19,7 +13,7 @@ def load_data():
     return data
 
 def train_model(train_data, test_data):
-    backend = BackendMPI()
+    backend = mpi.get_mpi_manager()
     bp_all_dim = BP_all_dim(backend, train_data, test_data)
     results = bp_all_dim.calculate(n_dim=train_data.shape[1])
     return results
@@ -35,5 +29,3 @@ if __name__ == "__main__":
     test_data = torch.tensor(data[0]).unsqueeze(0)
     results = train_model(train_data, test_data)
     evaluate_model(results)
-    
-"""
