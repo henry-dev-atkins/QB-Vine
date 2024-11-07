@@ -7,10 +7,8 @@ import cloudpickle
 import numpy as np
 from mpi4py import MPI
 
-from main.backends.mpimanager import *
-from main.backends import BDS, PDS, Backend, NestedParallelizationController
-
-
+from .mpimanager import get_mpi_manager
+from .base import BDS, PDS, Backend, NestedParallelizationController
 
 class NestedParallelizationControllerMPI(NestedParallelizationController):
     def __init__(self, mpi_comm):
@@ -226,7 +224,7 @@ class BackendMPIScheduler(Backend):
 
     def orchestrate_map(self, pds_id):
         """Orchestrates the teams to perform a map function
-        
+
         This works by keeping track of the teams who haven't finished executing,
         waiting for them to request the next chunk of data when they are free,
         responding to them with the data and then sending them a Sentinel
@@ -411,7 +409,7 @@ class BackendMPIWorker(Backend):
     Workers are processes that are used to execute (maybe MPI) models
     There is one communicator per model to execute, compounded of one leader and workers
     Leaders receives instructions from the scheduler which then transmit them to workers
-    Leaders are themselves workers 
+    Leaders are themselves workers
     """
 
     OP_PARALLELIZE, OP_MAP, OP_COLLECT, OP_BROADCAST, OP_DELETEPDS, OP_DELETEBDS, OP_FINISH = [1, 2, 3, 4, 5, 6, 7]
@@ -449,8 +447,7 @@ class BackendMPIWorker(Backend):
         while True:
             data = self.mpimanager.get_model_communicator().bcast(None, root=0)
             if data is None:
-                self.logger.error("Received None data in __worker_run")
-                return
+                continue
             op = data[0]
             if op == self.OP_MAP:
                 # Receive data from scheduler of the model
@@ -670,11 +667,12 @@ class BackendMPITeam(BackendMPILeader if get_mpi_manager().is_leader() else Back
         # print("In BackendMPITeam, rank : ", self.rank, ", model_rank_global : ", globals()['model_rank_global'])
 
         self.logger = logging.getLogger(__name__)
+        self.mpimanager = get_mpi_manager()
         super().__init__()
 
 
-class BackendMPITeam(BackendMPILeader if get_mpi_manager().is_leader() else BackendMPIWorker):
-    """"A backend parallelized by using MPI
+class BackendMPI(BackendMPIScheduler if get_mpi_manager().is_scheduler() else BackendMPITeam):
+    """A backend parallelized by using MPI
 
     The backend conditionally inherits either the BackendMPIScheduler class
     or the BackendMPIteam class depending on it's rank. This lets
@@ -689,7 +687,7 @@ class BackendMPITeam(BackendMPILeader if get_mpi_manager().is_leader() else Back
         ----------
         scheduler_node_ranks: Python list
             list of scheduler nodes
-        
+
         process_per_model: Integer
             number of MPI processes to allocate to each model
         """

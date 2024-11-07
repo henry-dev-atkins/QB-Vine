@@ -64,7 +64,7 @@ class Backend(metaclass=ABCMeta):
             A function that can be applied to every element of the pds
         pds: PDS class
             A parallel data set to which func should be applied
-        
+
         Returns
         -------
         PDS class
@@ -82,7 +82,7 @@ class Backend(metaclass=ABCMeta):
         ----------
         pds: PDS class
             a parallel data set
-            
+
         Returns
         -------
         Python list
@@ -114,7 +114,7 @@ class BDS:
     @abstractmethod
     def value(self):
         """
-        This method should return the actual object that the broadcast data set represents. 
+        This method should return the actual object that the broadcast data set represents.
         """
         raise NotImplementedError
 
@@ -137,7 +137,7 @@ class BackendDummy(Backend):
         ----------
         python_list: Python list
         Returns
-        -------        
+        -------
         PDSDummy (parallel data set)
         """
 
@@ -150,9 +150,9 @@ class BackendDummy(Backend):
         Parameters
         ----------
         object: Python object
-        
+
         Returns
-        -------        
+        -------
         BDSDummy class
         """
 
@@ -168,7 +168,7 @@ class BackendDummy(Backend):
             A function that can be applied to every element of the pds
         pds: PDSDummy class
             A pseudo-parallel data set to which func should be applied
-        
+
         Returns
         -------
         PDSDummy class

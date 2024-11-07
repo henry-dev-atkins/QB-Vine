@@ -29,7 +29,7 @@ class BackendSpark(Backend):
         ----------
         list: Python list
             list that is distributed on the workers
-        
+
         Returns
         -------
         PDSSpark class (parallel data set)

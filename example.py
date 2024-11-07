@@ -1,20 +1,22 @@
 import torch
+import logging
+from sklearn.datasets import load_wine
 from main.AllDimRecursion import BP_all_dim
-from main.backends import *
+from main.backends import BackendMPI
 
-# I have Implemented what I *think* is the correct way to use the codebase, 
-# although it is untested due to import/install issues.
-
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def load_data():
-    from sklearn.datasets import load_wine
     wine = load_wine()
     data = wine.data
     return data
 
 def train_model(train_data, test_data):
-    backend = mpi.get_mpi_manager()
+    backend = BackendMPI()
     bp_all_dim = BP_all_dim(backend, train_data, test_data)
+    print(f"example.train_model: Training data shape: {train_data[0].shape}")
+    print(f"example.train_model: Training data sample: {train_data[-1].shape}")
     results = bp_all_dim.calculate(n_dim=train_data.shape[1])
     return results
 
@@ -26,6 +28,6 @@ def evaluate_model(results):
 if __name__ == "__main__":
     data = load_data()
     train_data = torch.tensor(data).unsqueeze(0)
-    test_data = torch.tensor(data[0]).unsqueeze(0)
+    test_data = torch.tensor(data).unsqueeze(0)
     results = train_model(train_data, test_data)
     evaluate_model(results)
