@@ -39,7 +39,7 @@ class BP_all_dim(Method):
         self.test_data_all_dim_bds = self.backend.broadcast(test_data_all_dim)
         self.logger = logging.getLogger(__name__)
 
-        self.logger.info(f"BP_all_dim initialized with backend={backend}, train_data_all_dim={train_data_all_dim.shape}, test_data_all_dim={test_data_all_dim.shape}")
+        self.logger.debug(f"BP_all_dim initialized with backend={backend}, train_data_all_dim={train_data_all_dim.shape}, test_data_all_dim={test_data_all_dim.shape}")
 
     def calculate(self, n_dim):
         self.logger.debug(f"Starting calculate method with n_dim={n_dim}")
@@ -59,10 +59,10 @@ class BP_all_dim(Method):
         self.logger.debug(f"Starting _BP_single_dim for dimension {dim_index}")
         max_iter = 50
         learning_rate = 3
-        train_data = self.train_data_all_dim_bds.value()[:, int(dim_index)]
-        test_data = self.test_data_all_dim_bds.value()[:,  int(dim_index)]
+        train_data = self.train_data_all_dim_bds.value()[:, int(dim_index)].reshape(-1, 1)
+        test_data = self.test_data_all_dim_bds.value()[:,  int(dim_index)].reshape(-1, 1)
         # Ensure train_data and test_data have compatible shapes
-        print(train_data.shape)
+
         if train_data.shape[0] != test_data.shape[0]:
             raise ValueError(
                 f"Incompatible shapes: train_data {train_data.shape}, test_data {test_data.shape}")

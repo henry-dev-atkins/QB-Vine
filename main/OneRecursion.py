@@ -209,12 +209,8 @@ class MarRecur:
             cdf = torch.distributions.normal.Normal(loc=0, scale=1).cdf(test_data).reshape(num_data_test)
             pdf = DistributionFunctions.pdf_std_normal(test_data).reshape(num_data_test)
         if init_dist == 'Cauchy':
-            print("Handle Cauchy")
-            print(f"test_data: {test_data.shape}, cdf_traindata_oneperm: {cdf_traindata_oneperm.shape}, {num_data_test}")
             cdf = torch.distributions.cauchy.Cauchy(loc=0.0, scale=1.0).cdf(test_data).reshape(num_data_test)
-            print(f"Cauchy: {cdf.shape}")
             pdf = torch.distributions.cauchy.Cauchy(loc=0.0, scale=1.0).log_prob(test_data).exp().reshape(num_data_test)
-            print(f"Cauchy: {pdf.shape}, {cdf.shape}")
         if init_dist == 'Lomax':
             cdf = cdf_lomax(test_data, a)
             pdf = pdf_lomax(test_data, a)
@@ -224,15 +220,12 @@ class MarRecur:
 
         # recursion for p_i i>0
         for k in range(0, num_data_train):
-            print(f"test_data: {test_data.shape}, cdf: {cdf.shape}, cdf_traindata_oneperm: {cdf_traindata_oneperm.shape}")
             cop = DistributionFunctions.GC_density(rho=current_rho,
                                                    u=cdf,
                                                    v=cdf_traindata_oneperm[k]).reshape(num_data_test)
-            print(f"cop: {cop.shape}")
             Cop = DistributionFunctions.cGC_distribution(rho=current_rho,
                                                          u=cdf,
                                                          v=cdf_traindata_oneperm[k]).reshape(num_data_test)
-            print(f"Cop: {Cop.shape}")
             cdf = (1 - alpha(k + 1)) * cdf + alpha(k + 1) * Cop
             cdf = torch.clip(cdf, min=flt, max=1. + flt)
             pdf = (1 - alpha(k + 1)) * pdf + alpha(k + 1) * cop * pdf
