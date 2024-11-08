@@ -7,9 +7,8 @@ import cloudpickle
 import numpy as np
 from mpi4py import MPI
 
-import backends.mpimanager
-from backends import BDS, PDS, Backend, NestedParallelizationController
-
+from .mpimanager import get_mpi_manager
+from .base import BDS, PDS, Backend, NestedParallelizationController
 
 class NestedParallelizationControllerMPI(NestedParallelizationController):
     def __init__(self, mpi_comm):
@@ -225,7 +224,7 @@ class BackendMPIScheduler(Backend):
 
     def orchestrate_map(self, pds_id):
         """Orchestrates the teams to perform a map function
-        
+
         This works by keeping track of the teams who haven't finished executing,
         waiting for them to request the next chunk of data when they are free,
         responding to them with the data and then sending them a Sentinel
@@ -330,8 +329,9 @@ class BackendMPIScheduler(Backend):
         # Initialize lists to accumulate results
         all_data_indices, all_data_items = [], []
 
-        for node_data in all_data:
-            for index, item in node_data:
+        for node_data in reversed(all_data):
+            for index, item in reversed(node_data):
+                logging.debug(f"Received data from node {index}, data: {item}, type: {type(item)}, index: {index}")
                 if isinstance(item, Exception):
                     raise item
                 all_data_indices.append(index)
@@ -410,7 +410,7 @@ class BackendMPIWorker(Backend):
     Workers are processes that are used to execute (maybe MPI) models
     There is one communicator per model to execute, compounded of one leader and workers
     Leaders receives instructions from the scheduler which then transmit them to workers
-    Leaders are themselves workers 
+    Leaders are themselves workers
     """
 
     OP_PARALLELIZE, OP_MAP, OP_COLLECT, OP_BROADCAST, OP_DELETEPDS, OP_DELETEBDS, OP_FINISH = [1, 2, 3, 4, 5, 6, 7]
@@ -447,6 +447,8 @@ class BackendMPIWorker(Backend):
         """
         while True:
             data = self.mpimanager.get_model_communicator().bcast(None, root=0)
+            if data is None:
+                continue
             op = data[0]
             if op == self.OP_MAP:
                 # Receive data from scheduler of the model
@@ -648,7 +650,7 @@ class BackendMPILeader(BackendMPIWorker):
         _ = self.mpimanager.get_scheduler_communicator().gather(pds.python_list, root=0)
 
 
-class BackendMPITeam(BackendMPILeader if backends.mpimanager.get_mpi_manager().is_leader() else BackendMPIWorker):
+class BackendMPITeam(BackendMPILeader if get_mpi_manager().is_leader() else BackendMPIWorker):
     """
     A team is compounded by workers and a leader. One process per team is a leader, others are workers
     """
@@ -666,10 +668,11 @@ class BackendMPITeam(BackendMPILeader if backends.mpimanager.get_mpi_manager().i
         # print("In BackendMPITeam, rank : ", self.rank, ", model_rank_global : ", globals()['model_rank_global'])
 
         self.logger = logging.getLogger(__name__)
+        self.mpimanager = get_mpi_manager()
         super().__init__()
 
 
-class BackendMPI(BackendMPIScheduler if backends.mpimanager.get_mpi_manager().is_scheduler() else BackendMPITeam):
+class BackendMPI(BackendMPIScheduler if get_mpi_manager().is_scheduler() else BackendMPITeam):
     """A backend parallelized by using MPI
 
     The backend conditionally inherits either the BackendMPIScheduler class
@@ -685,13 +688,13 @@ class BackendMPI(BackendMPIScheduler if backends.mpimanager.get_mpi_manager().is
         ----------
         scheduler_node_ranks: Python list
             list of scheduler nodes
-        
+
         process_per_model: Integer
             number of MPI processes to allocate to each model
         """
         # get mpimanager instance from the mpimanager module (which has to be setup before calling the constructor)
         self.logger = logging.getLogger(__name__)
-        self.mpimanager = backends.mpimanager.get_mpi_manager()
+        self.mpimanager = get_mpi_manager()
 
         if self.mpimanager.get_world_size() < 2:
             raise ValueError('A minimum of 2 ranks are required for the MPI backend')

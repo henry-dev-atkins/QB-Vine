@@ -1,11 +1,11 @@
-
-from utils import *
+from .utils import *
 import torch
+
 
 class DistributionFunctions:
     def __init__(self):
         pass
-    
+
     @staticmethod
     def inverse_std_normal(cumulative_prob):
         """
@@ -16,8 +16,9 @@ class DistributionFunctions:
         the inverse cdf of the standard normal distribution
         """
         cumulative_prob_double = cumulative_prob.double()
-        return torch.clamp(torch.erfinv(2 * cumulative_prob_double - 1) * torch.sqrt(torch.tensor(2.0)), -10, 10).float()
-    
+        return torch.clamp(torch.erfinv(2 * cumulative_prob_double - 1) * torch.sqrt(torch.tensor(2.0)), -10,
+                           10).float()
+
     @staticmethod
     def cdf_std_normal(input):
         """
@@ -28,7 +29,7 @@ class DistributionFunctions:
         the cdf of the standard normal distribution
         """
         return torch.distributions.normal.Normal(loc=0, scale=1).cdf(input)
-    
+
     @staticmethod
     def pdf_std_normal(input):
         """
@@ -39,7 +40,7 @@ class DistributionFunctions:
         the pdf of the standard normal distribution
         """
         return torch.distributions.normal.Normal(loc=0, scale=1).log_prob(input).exp()
-    
+
     @staticmethod
     def bvn_density(rho, u, v, shift=0.0, scale=1.0):
         """
@@ -61,7 +62,7 @@ class DistributionFunctions:
         input = torch.cat([u.reshape(l, 1), v * torch.ones(l, 1)], dim=1)
 
         return multivariate_normal.log_prob(DistributionFunctions.inverse_std_normal(input)).exp()
-    
+
     @staticmethod
     def GC_density(rho, u, v, shift=0.0, scale=1.0):
         """
@@ -81,10 +82,10 @@ class DistributionFunctions:
         u_d = DistributionFunctions.pdf_std_normal(DistributionFunctions.inverse_std_normal(u)).reshape(l, 1)
         low = u_d * v_d
 
-        up = DistributionFunctions.bvn_density(rho = rho, u = u, v = v).reshape(l, 1)
+        up = DistributionFunctions.bvn_density(rho=rho, u=u, v=v).reshape(l, 1)
 
         return up / low
-    
+
     @staticmethod
     def cGC_distribution(rho, u, v, shift=0.0, scale=1.0):
         """
@@ -98,20 +99,23 @@ class DistributionFunctions:
         --- Output
         conditional cdf value of u conditional on v
         """
-        upper = DistributionFunctions.inverse_std_normal(u).reshape(len(u), 1) - rho * DistributionFunctions.inverse_std_normal(v)
+        upper = DistributionFunctions.inverse_std_normal(u).reshape(len(u),
+                                                                    1) - rho * DistributionFunctions.inverse_std_normal(
+            v)
         lower = torch.sqrt(1 - rho ** 2)
         input = upper / lower
-        
+
         return DistributionFunctions.cdf_std_normal(input)
+
 
 # Example usage:
 if __name__ == '__main__':
     dist = DistributionFunctions()
-    
+
     u = torch.tensor([0.1, 0.2, 0.3])
     v = torch.tensor([0.4])
     rho = 0.5
-    
+
     # Example of using one of the methods:
     density = dist.GC_density(rho, u, v)
     print("GC Density:", density)
