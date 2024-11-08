@@ -25,4 +25,5 @@ if __name__ == "__main__":
     QBV = QBV()
     results = QBV.fit(X, y)
 
-    evaluate_model(results)
+    print(QBV.predict(X[0:2, :]))
+    print(y[0:2])

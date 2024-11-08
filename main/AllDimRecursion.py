@@ -61,7 +61,7 @@ class BP_all_dim(Method):
         self.logger.debug("Finished calculate method")
         return out_calc
 
-    def _BP_single_dim(self, dim_index):
+    def _BP_single_dim(self, dim_index:int):
         self.logger.debug(f"Starting _BP_single_dim for dimension {dim_index}")
         max_iter = 50
         learning_rate = 3
@@ -81,14 +81,14 @@ class BP_all_dim(Method):
         scores_hist = []
         theta_hist = []
         stop_counter = 0  # for early stopping in case of convergence
-        logging.debug(f"Dim={dim_index} | Starting optimization loop over max_iter")
+        #logging.debug(f"Dim={dim_index} | Starting optimization loop over max_iter")
         for i in range(max_iter):
             optimizer.zero_grad()
             # over all perms
             conditional_cdf_train_list = []
             cdf_perms = []
             for perm in range(train_data.shape[0]):
-                self.logger.debug(f"Dim={dim_index} | Iter={i} | Perm={perm}")
+                #self.logger.debug(f"Dim={dim_index} | Iter={i} | Perm={perm}")
                 conditional_cdf_train = MarRecur().get_CDFn_on_trainset(train_data[perm], torch.sigmoid(rho))  # gets u^n values
                 conditional_cdf_train_list.append(conditional_cdf_train)
                 grid, grid_cdf = MarRecur().get_CDF_on_grid_single_perm(grid_size=1000, cdf_traindata_oneperm=conditional_cdf_train, current_rho=torch.sigmoid(rho), observed_data=train_data[perm])  # gets cdf values on grid
@@ -125,8 +125,7 @@ class BP_all_dim(Method):
                         avg_pdfs = torch.stack(pdfs).mean(dim=0)
                         avg_cdfs = torch.stack(cdfs).mean(dim=0)
                         avg_cdfs_train = torch.stack(cdfs_train).mean(dim=0)
-                        self.logger.debug(f"Dim={dim_index} | Iter={i} | Finished averaging pdfs and cdfs over permutations")
                         out = [avg_pdfs.detach().numpy(), avg_cdfs.detach().numpy(), theta_hist[-2], dim_index, avg_cdfs_train.detach().numpy()]
-                        self.logger.debug(f"Dim={dim_index} finished | selected rho: {theta_hist[-2]} | nll: {np.mean(-np.log(avg_pdfs.detach().numpy()))} | time taken: {time.time() - start}")
+                        self.logger.debug(f"Dim={dim_index} finished | selected rho: {theta_hist[-2]} | nll: {np.mean(-np.log(avg_pdfs.detach().numpy()))} | time taken: {time.time() - start}, dim_index: {dim_index}")
                         break
         return out

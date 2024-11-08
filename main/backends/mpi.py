@@ -331,7 +331,6 @@ class BackendMPIScheduler(Backend):
 
         for node_data in reversed(all_data):
             for index, item in reversed(node_data):
-                logging.debug(f"Received data from node {index}, data: {item}, type: {type(item)}, index: {index}")
                 if isinstance(item, Exception):
                     raise item
                 all_data_indices.append(index)
