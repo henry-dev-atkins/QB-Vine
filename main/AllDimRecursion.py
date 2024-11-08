@@ -12,6 +12,12 @@ import logging
 
 from abc import ABCMeta, abstractmethod, abstractproperty
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(name)s.%(funcName)s [line: %(lineno)d] - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
 class Method(metaclass = ABCMeta):
     """
         This abstract base class represents an inference method.
@@ -39,7 +45,7 @@ class BP_all_dim(Method):
         self.test_data_all_dim_bds = self.backend.broadcast(test_data_all_dim)
         self.logger = logging.getLogger(__name__)
 
-        self.logger.debug(f"BP_all_dim initialized with backend={backend}, train_data_all_dim={train_data_all_dim.shape}, test_data_all_dim={test_data_all_dim.shape}")
+        self.logger.debug(f"Initialized with backend={backend}, train_data_all_dim={train_data_all_dim.shape}, test_data_all_dim={test_data_all_dim.shape}")
 
     def calculate(self, n_dim):
         self.logger.debug(f"Starting calculate method with n_dim={n_dim}")
@@ -62,8 +68,7 @@ class BP_all_dim(Method):
         train_data = self.train_data_all_dim_bds.value()[:, int(dim_index)].reshape(-1, 1)
         test_data = self.test_data_all_dim_bds.value()[:,  int(dim_index)].reshape(-1, 1)
         # Ensure train_data and test_data have compatible shapes
-
-        if train_data.shape[0] != test_data.shape[0]:
+        if train_data.shape[1] != test_data.shape[1]:
             raise ValueError(
                 f"Incompatible shapes: train_data {train_data.shape}, test_data {test_data.shape}")
 
@@ -76,7 +81,7 @@ class BP_all_dim(Method):
         scores_hist = []
         theta_hist = []
         stop_counter = 0  # for early stopping in case of convergence
-        logging.debug(f"_BP_single_dim: Dim={dim_index} | Starting optimization loop over max_iter")
+        logging.debug(f"Dim={dim_index} | Starting optimization loop over max_iter")
         for i in range(max_iter):
             optimizer.zero_grad()
             # over all perms
@@ -86,7 +91,6 @@ class BP_all_dim(Method):
                 self.logger.debug(f"Dim={dim_index} | Iter={i} | Perm={perm}")
                 conditional_cdf_train = MarRecur().get_CDFn_on_trainset(train_data[perm], torch.sigmoid(rho))  # gets u^n values
                 conditional_cdf_train_list.append(conditional_cdf_train)
-                self.logger.debug(f"Dim={dim_index} | Iter={i} | Perm={perm} | Finished computing conditional_cdf_train")
                 grid, grid_cdf = MarRecur().get_CDF_on_grid_single_perm(grid_size=1000, cdf_traindata_oneperm=conditional_cdf_train, current_rho=torch.sigmoid(rho), observed_data=train_data[perm])  # gets cdf values on grid
                 grid_cdf.requires_grad_(True)
                 cdf_perms.append(grid_cdf)
@@ -102,10 +106,7 @@ class BP_all_dim(Method):
                 with torch.no_grad():
                     if torch.sigmoid(rho).item() - theta_hist[-2] < 1e-2:
                         stop_counter += 1
-                        self.logger.debug(f"Dim={dim_index} | Iter={i} | stop_counter: {stop_counter}")
                     if torch.sigmoid(rho).item() > 0.999 or stop_counter > 2:  # Optimization finished
-                        self.logger.debug(f"Dim={dim_index} converged | evals: {1 + i} | selected rho: {theta_hist[-2]} | time taken: {time.time() - start}")
-                        self.logger.debug(f"Reason: | rho too close to 1: {torch.sigmoid(rho).item() > 0.999} | stop_counter>2 (diff between iterations<0.01) for 3 times: {stop_counter > 2}")
                         # Compute the pdf and cdf on test data
                         pdfs = []
                         cdfs = []
@@ -114,17 +115,11 @@ class BP_all_dim(Method):
                         test_grid = torch.cat([test_data, train_data], dim=0)
                         self.logger.debug(f"Dim={dim_index} | Iter={i} | Computing pdf and cdf on test data {test_data.shape} and train data {train_data.shape}")
                         for perm in range(train_data.shape[0]):
-                            self.logger.debug(f"Dim={dim_index} | Iter={i} | Perm={perm} | conditional_cdf_train_list length: {len(conditional_cdf_train_list)}")
                             conditional_cdf_train = conditional_cdf_train_list[perm]  # reuse the conditional cdf of theta[-2]
-                            self.logger.debug(f"Dim={dim_index} | Iter={i} | Perm={perm} | Computing pdf and cdf on test data, {len(conditional_cdf_train)}, {torch.tensor(theta_hist[-2])}")
                             pdf, cdf = MarRecur().eval_PDFandCDF_on_test_single_perm(test_data=test_grid, cdf_traindata_oneperm=conditional_cdf_train, current_rho=torch.tensor(theta_hist[-2]))
-                            self.logger.debug(f"Dim={dim_index} | Iter={i} | Perm={perm} | Finished computing pdf and cdf on test data")
                             pdfs.append(pdf[:test_data.shape[0]])  # only the test data
-                            self.logger.debug(f"Dim={dim_index} | Iter={i} | Perm={perm} | Appended pdf")
                             cdfs.append(cdf[:test_data.shape[0]])  # only the test data
-                            self.logger.debug(f"Dim={dim_index} | Iter={i} | Perm={perm} | Appended cdf")
                             cdfs_train.append(cdf[test_data.shape[0]:])  # only the train data
-                            self.logger.debug(f"Dim={dim_index} | Iter={i} | Perm={perm} | Appended cdf_train")
                         # average the pdfs and cdfs over permutations
                         self.logger.debug(f"Dim={dim_index} | Iter={i} | Averaging pdfs and cdfs over permutations")
                         avg_pdfs = torch.stack(pdfs).mean(dim=0)

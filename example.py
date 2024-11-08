@@ -17,8 +17,6 @@ def load_data():
 def train_model(train_data, test_data):
     backend = BackendMPI()
     bp_all_dim = BP_all_dim(backend, train_data, test_data)
-    print(f"example.train_model: Training data shape: {train_data.shape}")
-    print(f"example.train_model: Training data sample: {train_data.shape}")
     results = bp_all_dim.calculate(n_dim=train_data.shape[1])
     return results
 
@@ -28,8 +26,8 @@ def evaluate_model(results):
     print(f"Average PDF: {avg_pdfs}")
 
 if __name__ == "__main__":
-    data = load_data()[:20, 0:3]
-    train_data = torch.tensor(data)
-    test_data = torch.tensor(data)
+    data = load_data()
+    train_data = torch.tensor(data[:-20])
+    test_data = torch.tensor(data[-20:])
     results = train_model(train_data, test_data)
     evaluate_model(results)
