@@ -1,24 +1,15 @@
 import time
-
 import torch
 import logging
 from sklearn.datasets import load_wine
+
 from main.AllDimRecursion import BP_all_dim
 from main.backends import BackendMPI
+from main.QBV import QBV
 
-# Configure logging
+
+
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-
-def load_data():
-    wine = load_wine()
-    data = wine.data
-    return data
-
-def train_model(train_data, test_data):
-    backend = BackendMPI()
-    bp_all_dim = BP_all_dim(backend, train_data, test_data)
-    results = bp_all_dim.calculate(n_dim=train_data.shape[1])
-    return results
 
 def evaluate_model(results):
     avg_pdfs, avg_cdfs, rho, dim_index, avg_cdfs_train = results
@@ -26,8 +17,15 @@ def evaluate_model(results):
     print(f"Average PDF: {avg_pdfs}")
 
 if __name__ == "__main__":
-    data = load_data()
-    train_data = torch.tensor(data[:-20])
-    test_data = torch.tensor(data[-20:])
-    results = train_model(train_data, test_data)
-    evaluate_model(results)
+    from sklearn.preprocessing import MinMaxScaler
+    from sklearn.metrics import mean_squared_error
+    data = MinMaxScaler().fit_transform(load_wine().data)
+
+    X = torch.tensor(data[:, :-1])
+    y = torch.tensor(data[:, -1])
+
+    QBV = QBV()
+    results = QBV.fit(X, y)
+    preds = QBV.predict(X)
+    print(f"Mean Squared Error: {mean_squared_error(y, preds)}")
+
