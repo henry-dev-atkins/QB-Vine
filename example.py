@@ -17,13 +17,15 @@ def evaluate_model(results):
     print(f"Average PDF: {avg_pdfs}")
 
 if __name__ == "__main__":
-    data = load_wine().data
+    from sklearn.preprocessing import MinMaxScaler
+    from sklearn.metrics import mean_squared_error
+    data = MinMaxScaler().fit_transform(load_wine().data)
 
     X = torch.tensor(data[:, :-1])
     y = torch.tensor(data[:, -1])
 
     QBV = QBV()
     results = QBV.fit(X, y)
+    preds = QBV.predict(X)
+    print(f"Mean Squared Error: {mean_squared_error(y, preds)}")
 
-    print(QBV.predict(X[0:2, :]))
-    print(y[0:2])
